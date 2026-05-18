@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TL1 Command Builder — Multi-Vendor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;width:100%}
+body{font-family:'IBM Plex Mono','Courier New',monospace;background:#0d1117;color:#c9d1d9;overflow:hidden}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:268px;min-width:268px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:14px 16px;border-bottom:1px solid #30363d}
+.logo{font-size:11px;font-weight:700;letter-spacing:3px;color:#58a6ff;text-transform:uppercase}
+.logo-sub{font-size:10px;color:#6e7681;letter-spacing:1px;margin-top:2px}
+.vendor-row{display:flex;flex-wrap:wrap;gap:4px;padding:9px 14px;border-bottom:1px solid #30363d}
+.vendor-chip{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid #30363d;cursor:pointer;background:transparent;color:#8b949e;transition:all 0.15s;white-space:nowrap;font-family:inherit;letter-spacing:0.4px}
+.vendor-chip.active{border-color:#58a6ff;color:#58a6ff;background:rgba(88,166,255,0.08)}
+.vendor-chip.nortel-chip.active{border-color:#e3b341;color:#e3b341;background:rgba(227,179,65,0.08)}
+.search-wrap{padding:8px 14px;border-bottom:1px solid #30363d}
+.search-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 10px;color:#c9d1d9;font-size:12px;font-family:inherit;outline:none}
+.search-input:focus{border-color:#58a6ff}
+.cmd-list{flex:1;overflow-y:auto}
+.cat-label{padding:8px 14px 3px;font-size:10px;letter-spacing:2px;color:#6e7681;text-transform:uppercase}
+.cmd-item{padding:6px 14px;cursor:pointer;border-left:2px solid transparent;transition:all 0.1s}
+.cmd-item:hover{background:rgba(88,166,255,0.05);border-left-color:#30363d}
+.cmd-item.active{background:rgba(88,166,255,0.1);border-left-color:#58a6ff}
+.cmd-name{font-size:11px;font-weight:600;color:#e6edf3;letter-spacing:0.5px}
+.cmd-desc{font-size:10px;color:#6e7681;margin-top:1px;line-height:1.3}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.top-bar{padding:12px 18px;border-bottom:1px solid #30363d;background:#161b22;flex-shrink:0}
+.top-title{font-size:13px;font-weight:700;color:#e6edf3;letter-spacing:1px}
+.top-desc{font-size:11px;color:#6e7681;margin-top:2px}
+.vendor-badges{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.vbadge{font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(88,166,255,0.1);color:#58a6ff;border:1px solid rgba(88,166,255,0.2);letter-spacing:0.3px}
+.vbadge.nortel{background:rgba(255,166,0,0.1);color:#e3b341;border-color:rgba(255,166,0,0.25)}
+.content{flex:1;display:flex;overflow:hidden}
+.params-panel{width:350px;min-width:290px;border-right:1px solid #30363d;overflow-y:auto;padding:14px}
+.output-panel{flex:1;padding:14px;display:flex;flex-direction:column;overflow:hidden}
+.sec-title{font-size:10px;letter-spacing:2px;color:#6e7681;text-transform:uppercase;margin-bottom:10px}
+.param-group{margin-bottom:11px}
+.param-label{font-size:11px;color:#8b949e;margin-bottom:3px;display:flex;align-items:center;gap:5px}
+.param-req{color:#f85149;font-size:10px}
+.param-help{font-size:10px;color:#484f58;margin-top:3px;line-height:1.4}
+.param-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:6px 9px;color:#c9d1d9;font-size:12px;font-family:inherit;outline:none}
+.param-input:focus{border-color:#58a6ff}
+.param-select{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:6px 9px;color:#c9d1d9;font-size:12px;font-family:inherit;outline:none;cursor:pointer}
+.param-select:focus{border-color:#58a6ff}
+.output-box{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px;overflow-y:auto}
+.cmd-out{font-size:13px;color:#79c0ff;word-break:break-all;line-height:1.9;letter-spacing:0.5px}
+.cmd-ph{font-size:12px;color:#30363d;font-style:italic}
+.tmpl-box{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:11px}
+.tmpl-txt{font-size:11px;color:#6e7681;line-height:1.8;word-break:break-all}
+.tmpl-hl{color:#d2a8ff}
+.actions{display:flex;gap:8px;margin-top:10px;align-items:center}
+.btn{padding:6px 14px;border-radius:5px;font-size:11px;font-family:inherit;cursor:pointer;border:1px solid;letter-spacing:0.5px;transition:all 0.15s;font-weight:600}
+.btn-ok{background:#238636;border-color:#2ea043;color:#fff}
+.btn-ok:hover{background:#2ea043}
+.btn-sec{background:transparent;border-color:#30363d;color:#8b949e}
+.btn-sec:hover{border-color:#6e7681;color:#c9d1d9}
+.btn-clr{background:transparent;border-color:#30363d;color:#6e7681}
+.btn-clr:hover{border-color:#f85149;color:#f85149}
+.hist-item{background:#161b22;border:1px solid #21262d;border-radius:5px;padding:7px 11px;margin-bottom:6px;cursor:pointer;transition:border-color 0.15s}
+.hist-item:hover{border-color:#30363d}
+.hist-cmd{font-size:11px;color:#79c0ff;word-break:break-all}
+.hist-meta{font-size:10px;color:#484f58;margin-top:2px}
+.empty-st{display:flex;align-items:center;justify-content:center;height:100%;color:#30363d;font-size:12px;letter-spacing:2px}
+.tabs{display:flex;border-bottom:1px solid #30363d;margin-bottom:12px}
+.tab{padding:6px 12px;font-size:11px;cursor:pointer;border-bottom:2px solid transparent;color:#6e7681;font-family:inherit;background:none;border-top:none;border-left:none;border-right:none;letter-spacing:0.4px}
+.tab.active{border-bottom-color:#58a6ff;color:#58a6ff}
+.cbadge{font-size:10px;background:#30363d;color:#8b949e;border-radius:10px;padding:1px 6px;margin-left:4px}
+.copy-ok{font-size:10px;color:#3fb950;opacity:0;transition:opacity 0.3s}
+.copy-ok.show{opacity:1}
+.no-match{padding:14px;font-size:11px;color:#484f58}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useMemo}=React;
+
+const VENDORS={
+  generic:{label:"Generic / Standard"},
+  ciena:{label:"Ciena"},
+  nokia:{label:"Nokia"},
+  cisco:{label:"Cisco"},
+  adtran:{label:"Adtran"},
+  calix:{label:"Calix"},
+  daxs5:{label:"Nortel DXS-5"},
+  daxs4:{label:"Nortel DXS-4"},
+};
+const ALL=["generic","ciena","nokia","cisco","adtran","calix","daxs5","daxs4"];
+const SONET=["generic","ciena","nokia","cisco","adtran"];
+const NORTEL=["daxs5","daxs4"];
+const ETH_V=["generic","ciena","nokia","cisco","adtran","calix"];
+const DWDM_V=["generic","ciena","nokia","cisco"];
+
+const COMMANDS={
+  RTRV_ALM:{label:"RTRV-ALM",category:"Alarms",description:"Retrieve active alarms on any facility or entity",vendors:ALL,
+    template:"RTRV-ALM-{aid_type}:[{tid}]:{aid}:{ctag}::{ntfcncde},{condtype},{srveff},{locn},{dirn},{tmper};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false,help:"Leave blank for local NE."},
+      {id:"aid_type",label:"AID Type",type:"select",options:["ALL","T1","T3","DS0","DS1","DS3","OC3","OC12","OC48","OC192","ETH","STS1","STS3C","STS12C","VT1","VT15","DSG","DWDM","OCH"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"ALL",required:true,help:"Use ALL or specify e.g. 1-1-1."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true,help:"Max 6 alphanumeric chars."},
+      {id:"ntfcncde",label:"Notification Code",type:"select",options:["","CR","MJ","MN","WN","NA","NR"],required:false,help:"CR=Critical  MJ=Major  MN=Minor  WN=Warning  NA=Not Alarmed  NR=Not Reported"},
+      {id:"condtype",label:"Condition Type",type:"text",placeholder:"LOS or ALL",required:false},
+      {id:"srveff",label:"Service Effect",type:"select",options:["","SA","NSA"],required:false,help:"SA=Service Affecting  NSA=Non-Service Affecting"},
+      {id:"locn",label:"Location",type:"select",options:["","NEND","FEND"],required:false},
+      {id:"dirn",label:"Direction",type:"select",options:["","RCV","TRMT","BTH"],required:false},
+      {id:"tmper",label:"Time Period",type:"select",options:["","15-MIN","1-DAY"],required:false},
+    ]},
+  RTRV_PM:{label:"RTRV-PM",category:"Performance",description:"Retrieve performance monitoring counters",vendors:ALL,
+    template:"RTRV-PM-{aid_type}:[{tid}]:{aid}:{ctag}::{montype},{monlev},{locn},{dirn},{tmper},{mondat},{montm};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid_type",label:"AID Type",type:"select",options:["ALL","T1","T3","DS0","DS1","DS3","OC3","OC12","OC48","OC192","ETH","STS1","STS3C","VT1","DWDM","DSG"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"montype",label:"Monitor Type",type:"select",options:["ALL","ES","SES","UAS","CV","AISS","OPR","OPT","OPIN","DBYTE","FEBBE","FECV","FESES","FEUAS","FECS","EFS","CSES","PJCDET","PJCGEN","SEFL","FEC-CORR","FEC-UNCORR","OSNR","CD","PMD","Q-FACTOR","BER","PRE-FEC-BER"],required:false},
+      {id:"monlev",label:"Monitor Level",type:"text",placeholder:"0-UP",required:false},
+      {id:"locn",label:"Location",type:"select",options:["","NEND","FEND"],required:false},
+      {id:"dirn",label:"Direction",type:"select",options:["","RCV","TRMT","BTH"],required:false},
+      {id:"tmper",label:"Time Period",type:"select",options:["","15-MIN","1-DAY"],required:false},
+      {id:"mondat",label:"Monitor Date",type:"text",placeholder:"MM-DD",required:false},
+      {id:"montm",label:"Monitor Time",type:"text",placeholder:"HH-MM",required:false},
+    ]},
+  RTRV_HDR:{label:"RTRV-HDR",category:"System",description:"Retrieve NE header and identification",vendors:ALL,
+    template:"RTRV-HDR:[{tid}]::{ctag};",
+    params:[{id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},{id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true}]},
+  RTRV_NETYPE:{label:"RTRV-NETYPE",category:"System",description:"Retrieve network element type and software version",vendors:ALL,
+    template:"RTRV-NETYPE:[{tid}]::{ctag};",
+    params:[{id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},{id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true}]},
+  INIT_SYS:{label:"INIT-SYS",category:"System",description:"Initialize system — warm or cold reboot",vendors:ALL,
+    template:"INIT-SYS:[{tid}]::{ctag}:::{phase};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"phase",label:"Init Phase",type:"select",options:["1","2","3"],required:true,help:"1=Warm restart  2=Cold restart  3=Full init"},
+    ]},
+  SET_DAT:{label:"SET-DAT",category:"System",description:"Set NE date and time",vendors:ALL,
+    template:"SET-DAT:[{tid}]::{ctag}:::{date},{time};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"date",label:"Date (YY-MM-DD)",type:"text",placeholder:"26-05-18",required:true},
+      {id:"time",label:"Time (HH-MM-SS)",type:"text",placeholder:"14-30-00",required:true},
+    ]},
+  ACT_USER:{label:"ACT-USER",category:"Security",description:"Activate / login a user session",vendors:ALL,
+    template:"ACT-USER:[{tid}]:{uid}:{ctag}::{pid};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"uid",label:"User ID",type:"text",placeholder:"ADMIN",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"pid",label:"Password",type:"password",placeholder:"••••••••",required:true},
+    ]},
+  CANC_USER:{label:"CANC-USER",category:"Security",description:"Cancel / logout user session",vendors:ALL,
+    template:"CANC-USER:[{tid}]:{uid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"uid",label:"User ID",type:"text",placeholder:"ADMIN",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_EQPT:{label:"RTRV-EQPT",category:"Equipment",description:"Retrieve equipment inventory for a slot or shelf",vendors:ALL,
+    template:"RTRV-EQPT:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID (Slot)",type:"text",placeholder:"ALL or SHELF-1-SLOT-3",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_EQPT:{label:"ED-EQPT",category:"Equipment",description:"Edit equipment provisioning attributes",vendors:SONET,
+    template:"ED-EQPT:[{tid}]:{aid}:{ctag}:::{eqpttype},{apsr},{ains},{protid},{prtype};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID (Slot)",type:"text",placeholder:"SHELF-1-SLOT-3",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"eqpttype",label:"Equipment Type",type:"text",placeholder:"OC192-XFP",required:false},
+      {id:"apsr",label:"Auto-Prov State",type:"select",options:["","YES","NO"],required:false},
+      {id:"ains",label:"Alarm Inhibit State",type:"select",options:["","YES","NO"],required:false},
+      {id:"protid",label:"Protection ID",type:"text",placeholder:"PROT-1",required:false},
+      {id:"prtype",label:"Protection Type",type:"select",options:["","1+1","1:1","UNEQUIP"],required:false},
+    ]},
+  ED_SHELF:{label:"ED-SHELF",category:"Equipment",description:"Edit shelf attributes and name",vendors:SONET,
+    template:"ED-SHELF:[{tid}]:{aid}:{ctag}:::{shelftype},{shelfname};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"Shelf AID",type:"text",placeholder:"SHELF-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"shelftype",label:"Shelf Type",type:"text",placeholder:"MAIN",required:false},
+      {id:"shelfname",label:"Shelf Name",type:"text",placeholder:"CO-EAST-A",required:false,help:"Descriptive label for this shelf."},
+    ]},
+  DLT_EQPT:{label:"DLT-EQPT",category:"Equipment",description:"Delete provisioned card or equipment from a slot",vendors:ALL,
+    template:"DLT-EQPT:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID (Slot)",type:"text",placeholder:"SHELF-1-SLOT-3",required:true,help:"Delete all facilities and cross-connects from this card first."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  DLT_SHELF:{label:"DLT-SHELF",category:"Equipment",description:"Delete an expansion shelf from the NE",vendors:SONET,
+    template:"DLT-SHELF:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"Shelf AID",type:"text",placeholder:"SHELF-2",required:true,help:"All slots must be empty before shelf deletion."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  DLT_PORT:{label:"DLT-PORT",category:"Equipment",description:"Delete / de-provision a port",vendors:ALL,
+    template:"DLT-PORT:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"Port AID",type:"text",placeholder:"FAC-1-1-1",required:true,help:"Remove all facilities and cross-connects from port first."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_T1:{label:"RTRV-T1",category:"Facility",description:"Retrieve T1 facility parameters",vendors:["generic","ciena","adtran","calix","daxs5","daxs4"],
+    template:"RTRV-T1:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"T1-1-1-1 or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_T1:{label:"ED-T1",category:"Facility",description:"Edit T1 facility parameters",vendors:["generic","ciena","adtran","calix","daxs5","daxs4"],
+    template:"ED-T1:[{tid}]:{aid}:{ctag}:::{linecde},{fmt},{lbo},{tacc},{taptype},{sfber},{sdber},{ains},{ainstmr},{inact};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"T1-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"linecde",label:"Line Code",type:"select",options:["","AMI","B8ZS"],required:false},
+      {id:"fmt",label:"Framing Format",type:"select",options:["","SF","ESF","UNFR"],required:false},
+      {id:"lbo",label:"Line Build Out",type:"select",options:["","0-133FT","133-266FT","266-399FT","399-533FT","533-655FT"],required:false},
+      {id:"tacc",label:"Test Access",type:"select",options:["","Y","N"],required:false},
+      {id:"taptype",label:"TAP Type",type:"select",options:["","BRIDGED","SPLIT"],required:false},
+      {id:"sfber",label:"SF BER Threshold",type:"select",options:["","1E-3","1E-4","1E-5"],required:false},
+      {id:"sdber",label:"SD BER Threshold",type:"select",options:["","1E-5","1E-6","1E-7","1E-8","1E-9"],required:false},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+      {id:"ainstmr",label:"AINS Timer (hrs)",type:"text",placeholder:"0-96",required:false},
+      {id:"inact",label:"Inactive State",type:"select",options:["","OOS-MA,MT","OOS-MA,LPBK"],required:false},
+    ]},
+  DLT_T1:{label:"DLT-T1",category:"Facility",description:"Delete T1 facility provisioning",vendors:["generic","ciena","adtran","calix","daxs5","daxs4"],
+    template:"DLT-T1:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"T1-1-1-1",required:true,help:"Remove all cross-connects before deletion."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_T3:{label:"RTRV-T3",category:"Facility",description:"Retrieve T3 facility parameters",vendors:SONET,
+    template:"RTRV-T3:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"T3-1-1-1 or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_T3:{label:"ED-T3",category:"Facility",description:"Edit T3 facility parameters",vendors:SONET,
+    template:"ED-T3:[{tid}]:{aid}:{ctag}:::{linecde},{sfber},{sdber},{ains},{ainstmr},{inact};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"T3-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"linecde",label:"Line Code",type:"select",options:["","B3ZS","NRZ"],required:false},
+      {id:"sfber",label:"SF BER Threshold",type:"select",options:["","1E-3","1E-4","1E-5"],required:false},
+      {id:"sdber",label:"SD BER Threshold",type:"select",options:["","1E-5","1E-6","1E-7","1E-8","1E-9"],required:false},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+      {id:"ainstmr",label:"AINS Timer (hrs)",type:"text",placeholder:"0-96",required:false},
+      {id:"inact",label:"Inactive State",type:"select",options:["","OOS-MA,MT","OOS-MA,LPBK"],required:false},
+    ]},
+  DLT_T3:{label:"DLT-T3",category:"Facility",description:"Delete T3 facility provisioning",vendors:SONET,
+    template:"DLT-T3:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"T3-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_DS0:{label:"RTRV-DS0",category:"TDM",description:"Retrieve DS0 channel parameters and status",vendors:ALL,
+    template:"RTRV-DS0:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"DS0 AID",type:"text",placeholder:"DS0-1-1-1-1 or ALL",required:true,help:"Format: DS0-shelf-slot-port-channel (1-24 for T1, 1-32 for E1)"},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_DS0:{label:"ED-DS0",category:"TDM",description:"Edit DS0 channel parameters — signaling, conditioning",vendors:ALL,
+    template:"ED-DS0:[{tid}]:{aid}:{ctag}:::{sigmode},{cond},{seize},{inact};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"DS0 AID",type:"text",placeholder:"DS0-1-1-1-1",required:true,help:"Format: DS0-shelf-slot-port-channel"},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"sigmode",label:"Signaling Mode",type:"select",options:["","NONE","E&M","FXS","FXO","RBS-LS","RBS-GS","RBS-DID","CAS","CCS"],required:false,help:"NONE=Clear channel  E&M=Ear and Mouth  FXS/FXO=Foreign Exchange  RBS=Robbed Bit Signaling"},
+      {id:"cond",label:"Conditioning",type:"select",options:["","ONES","AIS","IDLE","LOOP"],required:false,help:"Signal sent on unequipped channel."},
+      {id:"seize",label:"Seize Code",type:"select",options:["","AB","ABCD","SF"],required:false},
+      {id:"inact",label:"Inactive State",type:"select",options:["","OOS-MA,MT","OOS-AU,AINS"],required:false},
+    ]},
+  RTRV_DS0_MAP:{label:"RTRV-DS0MAP",category:"TDM",description:"Retrieve DS0 channel mapping / bundle assignment",vendors:ALL,
+    template:"RTRV-DS0MAP:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"DS0-1-1-1-1 or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ENT_DS0_GRP:{label:"ENT-DS0GRP",category:"TDM",description:"Enter DS0 group / bundle (fractional T1 or nx64)",vendors:ALL,
+    template:"ENT-DS0GRP:[{tid}]:{aid}:{ctag}:::{ds0list},{type},{rate};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"Group AID",type:"text",placeholder:"DSG-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"ds0list",label:"DS0 Channel List",type:"text",placeholder:"1-8 or 1&2&3",required:true,help:"Use range (1-12) or list (1&5&9)."},
+      {id:"type",label:"Group Type",type:"select",options:["","FT1","FE1","NX64","CLEAR"],required:false},
+      {id:"rate",label:"Rate (kbps)",type:"text",placeholder:"512",required:false,help:"nx64 kbps — e.g. 8 channels = 512 kbps."},
+    ]},
+  DLT_DS0_GRP:{label:"DLT-DS0GRP",category:"TDM",description:"Delete DS0 group / bundle",vendors:ALL,
+    template:"DLT-DS0GRP:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"Group AID",type:"text",placeholder:"DSG-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ENT_CRS_DS0:{label:"ENT-CRS-DS0",category:"TDM",description:"Enter DS0 cross-connect (channel-level grooming)",vendors:ALL,
+    template:"ENT-CRS-DS0:[{tid}]:{from_aid},{to_aid}:{ctag}:::{cct};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"from_aid",label:"From DS0 AID",type:"text",placeholder:"DS0-1-1-1-1",required:true,help:"Format: DS0-shelf-slot-port-channel"},
+      {id:"to_aid",label:"To DS0 AID",type:"text",placeholder:"DS0-1-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"cct",label:"Circuit Type",type:"select",options:["","1WAY","2WAY"],required:false},
+    ]},
+  DLT_CRS_DS0:{label:"DLT-CRS-DS0",category:"TDM",description:"Delete DS0 cross-connect",vendors:ALL,
+    template:"DLT-CRS-DS0:[{tid}]:{from_aid},{to_aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"from_aid",label:"From DS0 AID",type:"text",placeholder:"DS0-1-1-1-1",required:true},
+      {id:"to_aid",label:"To DS0 AID",type:"text",placeholder:"DS0-1-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_TDM_CLK:{label:"RTRV-SYNC",category:"TDM",description:"Retrieve TDM timing and synchronization sources",vendors:ALL,
+    template:"RTRV-SYNC:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"SYNC or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_SYNC:{label:"ED-SYNC",category:"TDM",description:"Edit TDM synchronization source priority and mode",vendors:ALL,
+    template:"ED-SYNC:[{tid}]:{aid}:{ctag}:::{syncpri},{syncsrc},{qlevel},{ssmgen},{ssmprot};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"SYNC-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"syncpri",label:"Sync Priority",type:"select",options:["1","2","3","4","5"],required:false,help:"Priority 1 is highest."},
+      {id:"syncsrc",label:"Sync Source AID",type:"text",placeholder:"FAC-1-1-1",required:false},
+      {id:"qlevel",label:"Quality Level",type:"select",options:["","PRS","STU","ST2","TNC","ST3E","ST3","SMC","ST4","DUS"],required:false},
+      {id:"ssmgen",label:"SSM Generation",type:"select",options:["","Y","N"],required:false},
+      {id:"ssmprot",label:"SSM Protocol",type:"select",options:["","SONET","SDH","G781"],required:false},
+    ]},
+  RTRV_OCN:{label:"RTRV-OC",category:"SONET / OCn",description:"Retrieve OCn line facility parameters",vendors:SONET,
+    template:"RTRV-OC{rate}:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"rate",label:"OC Rate",type:"select",options:["3","12","48","192"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"FAC-1-1-1 or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_OCN:{label:"ED-OC",category:"SONET / OCn",description:"Edit OCn optical facility parameters",vendors:SONET,
+    template:"ED-OC{rate}:[{tid}]:{aid}:{ctag}:::{framing},{syncmsg},{senddus},{sfber},{sdber},{ains},{ainstmr},{admssm},{soak};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"rate",label:"OC Rate",type:"select",options:["3","12","48","192"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"FAC-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"framing",label:"Framing",type:"select",options:["","SONET","SDH"],required:false},
+      {id:"syncmsg",label:"Sync Messaging",type:"select",options:["","Y","N"],required:false,help:"Enable SSM"},
+      {id:"senddus",label:"Send DUS",type:"select",options:["","Y","N"],required:false,help:"Send Do Not Use for Sync"},
+      {id:"sfber",label:"SF BER Threshold",type:"select",options:["","1E-3","1E-4","1E-5"],required:false},
+      {id:"sdber",label:"SD BER Threshold",type:"select",options:["","1E-5","1E-6","1E-7","1E-8","1E-9"],required:false},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+      {id:"ainstmr",label:"AINS Timer (hrs)",type:"text",placeholder:"0-96",required:false},
+      {id:"admssm",label:"Admin SSM",type:"select",options:["","PRS","STU","ST2","TNC","ST3E","ST3","SMC","ST4","DUS","RES"],required:false},
+      {id:"soak",label:"Soak Time (min)",type:"text",placeholder:"0-192",required:false},
+    ]},
+  DLT_OCN:{label:"DLT-OC",category:"SONET / OCn",description:"Delete OCn optical facility provisioning",vendors:SONET,
+    template:"DLT-OC{rate}:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"rate",label:"OC Rate",type:"select",options:["3","12","48","192"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"FAC-1-1-1",required:true,help:"Remove all STS paths and cross-connects first."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_STS:{label:"RTRV-STS",category:"SONET / OCn",description:"Retrieve STS path parameters",vendors:SONET,
+    template:"RTRV-STS{size}:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"size",label:"STS Size",type:"select",options:["1","3C","12C","48C","192C"],required:true,help:"1=STS-1  3C=STS-3c  12C=STS-12c"},
+      {id:"aid",label:"STS AID",type:"text",placeholder:"STS-1-1-1-1 or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_STS1:{label:"ED-STS1",category:"SONET / OCn",description:"Edit STS-1 path including J1 sent/expected labels",vendors:SONET,
+    template:"ED-STS1:[{tid}]:{aid}:{ctag}:::{sfber},{sdber},{rvrtv},{rvtm},{ains},{ainstmr},{pjmon},{j1expctd},{j1sent};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"STS1 AID",type:"text",placeholder:"STS-1-1-1-1",required:true,help:"Format: STS-shelf-slot-port-sts"},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"sfber",label:"SF BER Threshold",type:"select",options:["","1E-3","1E-4","1E-5"],required:false},
+      {id:"sdber",label:"SD BER Threshold",type:"select",options:["","1E-5","1E-6","1E-7","1E-8","1E-9"],required:false},
+      {id:"rvrtv",label:"Revertive",type:"select",options:["","Y","N"],required:false},
+      {id:"rvtm",label:"Revertive Time (min)",type:"text",placeholder:"5",required:false},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+      {id:"ainstmr",label:"AINS Timer (hrs)",type:"text",placeholder:"0-96",required:false},
+      {id:"pjmon",label:"Pointer Justif Monitor",type:"select",options:["","Y","N"],required:false},
+      {id:"j1expctd",label:"J1 Expected Label",type:"text",placeholder:"CO-A_CO-B_CKT-001",required:false,help:"Up to 62 ASCII chars. Alarm raised if received J1 does not match."},
+      {id:"j1sent",label:"J1 Sent Label",type:"text",placeholder:"CO-A_CO-B_CKT-001",required:false,help:"Up to 62 ASCII chars. Transmitted in J1 byte to far end."},
+    ]},
+  DLT_STS1:{label:"DLT-STS1",category:"SONET / OCn",description:"Delete STS-1 path provisioning",vendors:SONET,
+    template:"DLT-STS1:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"STS1 AID",type:"text",placeholder:"STS-1-1-1-1",required:true,help:"Remove cross-connects before deletion."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_PATH_TRACE:{label:"RTRV-PATH-TRACE",category:"J1 / Path Trace",description:"Retrieve J1 path trace — received and expected labels",vendors:SONET,
+    template:"RTRV-PATH-TRACE:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"STS / Path AID",type:"text",placeholder:"STS-1-1-1-1",required:true,help:"Returns J1 received, expected, and mismatch status."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_TRACE:{label:"RTRV-TRACE",category:"J1 / Path Trace",description:"Retrieve section (J0) or path (J1) trace string",vendors:["generic","ciena","nokia","cisco"],
+    template:"RTRV-TRACE-{ttype}:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"ttype",label:"Trace Type",type:"select",options:["STS1","STS3C","STS12C","STS48C","STS192C","OC3","OC12","OC48","OC192"],required:true,help:"STS=J1 path trace. OC=J0 section trace."},
+      {id:"aid",label:"AID",type:"text",placeholder:"STS-1-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_J1:{label:"ED-J1 Label",category:"J1 / Path Trace",description:"Set J1 path trace sent and expected labels on STS-1",vendors:SONET,
+    template:"ED-STS1:[{tid}]:{aid}:{ctag}:::{j1expctd},{j1sent};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"STS1 AID",type:"text",placeholder:"STS-1-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"j1expctd",label:"J1 Expected Label",type:"text",placeholder:"CO-A_CO-B_CKT-001",required:false,help:"Up to 62 ASCII chars. Alarm raised if received J1 does not match."},
+      {id:"j1sent",label:"J1 Sent Label",type:"text",placeholder:"CO-A_CO-B_CKT-001",required:false,help:"Transmitted in J1 overhead byte to far end."},
+    ]},
+  ED_J0:{label:"ED-J0 Label",category:"J1 / Path Trace",description:"Set J0 section trace labels on an OCn facility",vendors:SONET,
+    template:"ED-OC{rate}:[{tid}]:{aid}:{ctag}:::{j0expctd},{j0sent};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"rate",label:"OC Rate",type:"select",options:["3","12","48","192"],required:true},
+      {id:"aid",label:"OCn AID",type:"text",placeholder:"FAC-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"j0expctd",label:"J0 Expected Label",type:"text",placeholder:"SPAN-EAST",required:false,help:"Section trace expected string per G.707 — 1 or 64 bytes."},
+      {id:"j0sent",label:"J0 Sent Label",type:"text",placeholder:"SPAN-EAST",required:false},
+    ]},
+  RTRV_CRS:{label:"RTRV-CRS",category:"Cross-Connect",description:"Retrieve cross-connect table",vendors:ALL,
+    template:"RTRV-CRS:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"ALL or FAC-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ENT_CRS_STS1:{label:"ENT-CRS-STS1",category:"Cross-Connect",description:"Enter STS-1 cross-connect",vendors:SONET,
+    template:"ENT-CRS-STS1:[{tid}]:{from_aid},{to_aid}:{ctag}:::{cct},{rvrtv},{rvtm};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"from_aid",label:"From AID",type:"text",placeholder:"FAC-1-1-1",required:true},
+      {id:"to_aid",label:"To AID",type:"text",placeholder:"FAC-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"cct",label:"Circuit Type",type:"select",options:["","1WAY","2WAY","1WAYPR","2WAYPR"],required:false},
+      {id:"rvrtv",label:"Revertive",type:"select",options:["","Y","N"],required:false},
+      {id:"rvtm",label:"Revertive Time (min)",type:"text",placeholder:"5",required:false},
+    ]},
+  DLT_CRS_STS1:{label:"DLT-CRS-STS1",category:"Cross-Connect",description:"Delete STS-1 cross-connect",vendors:SONET,
+    template:"DLT-CRS-STS1:[{tid}]:{from_aid},{to_aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"from_aid",label:"From AID",type:"text",placeholder:"FAC-1-1-1",required:true},
+      {id:"to_aid",label:"To AID",type:"text",placeholder:"FAC-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  DLT_CRS_STS3C:{label:"DLT-CRS-STS3C",category:"Cross-Connect",description:"Delete STS-3c cross-connect",vendors:SONET,
+    template:"DLT-CRS-STS3C:[{tid}]:{from_aid},{to_aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"from_aid",label:"From AID",type:"text",placeholder:"STS-1-1-1-1",required:true},
+      {id:"to_aid",label:"To AID",type:"text",placeholder:"STS-1-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  DLT_CRS_STS12C:{label:"DLT-CRS-STS12C",category:"Cross-Connect",description:"Delete STS-12c cross-connect",vendors:SONET,
+    template:"DLT-CRS-STS12C:[{tid}]:{from_aid},{to_aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"from_aid",label:"From AID",type:"text",placeholder:"STS-1-1-1-1",required:true},
+      {id:"to_aid",label:"To AID",type:"text",placeholder:"STS-1-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  DLT_CRS_VT1:{label:"DLT-CRS-VT1",category:"Cross-Connect",description:"Delete VT1.5 (DS1-level) cross-connect",vendors:ALL,
+    template:"DLT-CRS-VT1:[{tid}]:{from_aid},{to_aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"from_aid",label:"From AID (VT)",type:"text",placeholder:"VT1-1-1-1-1-1",required:true,help:"Format: VT1-shelf-slot-port-sts-vt"},
+      {id:"to_aid",label:"To AID (VT)",type:"text",placeholder:"VT1-1-2-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_ETH:{label:"RTRV-ETH",category:"Ethernet",description:"Retrieve Ethernet facility parameters",vendors:ETH_V,
+    template:"RTRV-ETH:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"ETH AID",type:"text",placeholder:"ETH-1-1-1 or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_ETH:{label:"ED-ETH",category:"Ethernet",description:"Edit Ethernet facility parameters",vendors:ETH_V,
+    template:"ED-ETH:[{tid}]:{aid}:{ctag}:::{speed},{duplex},{autoneg},{mtu},{flowctrl},{ains},{ainstmr};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"ETH-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"speed",label:"Speed (Mbps)",type:"select",options:["","10","100","1000","10000","25000","40000","100000","400000","AUTO"],required:false},
+      {id:"duplex",label:"Duplex",type:"select",options:["","FULL","HALF","AUTO"],required:false},
+      {id:"autoneg",label:"Auto-Negotiate",type:"select",options:["","Y","N"],required:false},
+      {id:"mtu",label:"MTU (bytes)",type:"text",placeholder:"1518",required:false,help:"Standard: 1518  Baby jumbo: 1600  Jumbo: 9000"},
+      {id:"flowctrl",label:"Flow Control",type:"select",options:["","NONE","RX","TX","BOTH"],required:false},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+      {id:"ainstmr",label:"AINS Timer (hrs)",type:"text",placeholder:"0-96",required:false},
+    ]},
+  DLT_ETH:{label:"DLT-ETH",category:"Ethernet",description:"Delete Ethernet facility provisioning",vendors:ETH_V,
+    template:"DLT-ETH:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"ETH AID",type:"text",placeholder:"ETH-1-1-1",required:true,help:"Remove all services and VLANs before deletion."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ENT_ETH_SVC:{label:"ENT-ETH-SVC",category:"Ethernet",description:"Enter Ethernet service / VLAN provisioning",vendors:["generic","ciena","nokia","calix"],
+    template:"ENT-ETH-SVC:[{tid}]:{aid}:{ctag}:::{svctype},{vlanid},{cos},{bw},{cbs},{ebs};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"ETH AID",type:"text",placeholder:"ETH-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"svctype",label:"Service Type",type:"select",options:["","ELAN","ELINE","EVPL","EPL"],required:false},
+      {id:"vlanid",label:"VLAN ID",type:"text",placeholder:"100",required:false,help:"1–4094"},
+      {id:"cos",label:"Class of Service",type:"select",options:["","0","1","2","3","4","5","6","7"],required:false},
+      {id:"bw",label:"Bandwidth (Mbps)",type:"text",placeholder:"1000",required:false},
+      {id:"cbs",label:"Committed Burst (bytes)",type:"text",placeholder:"12000",required:false},
+      {id:"ebs",label:"Excess Burst (bytes)",type:"text",placeholder:"12000",required:false},
+    ]},
+  DLT_ETH_SVC:{label:"DLT-ETH-SVC",category:"Ethernet",description:"Delete Ethernet service / VLAN",vendors:["generic","ciena","nokia","calix"],
+    template:"DLT-ETH-SVC:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"Service AID",type:"text",placeholder:"SVC-100",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_DWDM:{label:"RTRV-DWDM",category:"DWDM",description:"Retrieve DWDM channel facility parameters",vendors:DWDM_V,
+    template:"RTRV-DWDM:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"DWDM AID",type:"text",placeholder:"DWDM-1-1-1 or ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ED_DWDM:{label:"ED-DWDM",category:"DWDM",description:"Edit DWDM channel — frequency, power, FEC, modulation",vendors:DWDM_V,
+    template:"ED-DWDM:[{tid}]:{aid}:{ctag}:::{freq},{txpwr},{rxpwr},{fec},{modformat},{ains},{ainstmr};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"DWDM AID",type:"text",placeholder:"DWDM-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"freq",label:"Frequency (THz)",type:"text",placeholder:"193.1000",required:false,help:"ITU-T G.694.1 C-band: 191.3500–196.1000 THz"},
+      {id:"txpwr",label:"Tx Power (dBm)",type:"text",placeholder:"0.0",required:false},
+      {id:"rxpwr",label:"Rx Power Target (dBm)",type:"text",placeholder:"-15.0",required:false},
+      {id:"fec",label:"FEC Mode",type:"select",options:["","NOFEC","STDFEC","ENHFEC","EFEC","OFEC","HGFEC"],required:false,help:"STDFEC=G.975 RS(255,239)  OFEC=OpenROADM  HGFEC=High-Gain"},
+      {id:"modformat",label:"Modulation Format",type:"select",options:["","OOK","DPSK","DQPSK","DP-QPSK","DP-16QAM","DP-32QAM","DP-64QAM","BPSK"],required:false},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+      {id:"ainstmr",label:"AINS Timer (hrs)",type:"text",placeholder:"0-96",required:false},
+    ]},
+  DLT_DWDM:{label:"DLT-DWDM",category:"DWDM",description:"Delete DWDM channel provisioning",vendors:DWDM_V,
+    template:"DLT-DWDM:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"DWDM AID",type:"text",placeholder:"DWDM-1-1-1",required:true,help:"Remove all client cross-connects before deletion."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  ENT_OCH:{label:"ENT-OCH",category:"DWDM",description:"Enter optical channel (OCh) — provision a DWDM wavelength",vendors:DWDM_V,
+    template:"ENT-OCH:[{tid}]:{aid}:{ctag}:::{freq},{txpwr},{fec},{modformat},{channel},{ains};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"OCh AID",type:"text",placeholder:"OCH-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"freq",label:"Frequency (THz)",type:"text",placeholder:"193.1000",required:false},
+      {id:"txpwr",label:"Tx Power (dBm)",type:"text",placeholder:"0.0",required:false},
+      {id:"fec",label:"FEC Mode",type:"select",options:["","NOFEC","STDFEC","ENHFEC","EFEC","OFEC","HGFEC"],required:false},
+      {id:"modformat",label:"Modulation Format",type:"select",options:["","OOK","DP-QPSK","DP-16QAM","DP-32QAM","DP-64QAM"],required:false},
+      {id:"channel",label:"ITU Channel #",type:"text",placeholder:"32",required:false,help:"e.g. C32 = 193.1 THz on C-band 100 GHz grid"},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+    ]},
+  DLT_OCH:{label:"DLT-OCH",category:"DWDM",description:"Delete optical channel (OCh) provisioning",vendors:DWDM_V,
+    template:"DLT-OCH:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"OCh AID",type:"text",placeholder:"OCH-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  RTRV_DWDM_PM:{label:"RTRV-PM-DWDM",category:"DWDM",description:"Retrieve DWDM optical power, OSNR, and FEC performance",vendors:DWDM_V,
+    template:"RTRV-PM-DWDM:[{tid}]:{aid}:{ctag}::{montype},{tmper},{mondat},{montm};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid",label:"DWDM AID",type:"text",placeholder:"DWDM-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"montype",label:"Monitor Type",type:"select",options:["ALL","OPR","OPT","OSNR","CD","PMD","Q-FACTOR","BER","FEC-CORR","FEC-UNCORR","PRE-FEC-BER"],required:false},
+      {id:"tmper",label:"Time Period",type:"select",options:["","15-MIN","1-DAY"],required:false},
+      {id:"mondat",label:"Monitor Date",type:"text",placeholder:"MM-DD",required:false},
+      {id:"montm",label:"Monitor Time",type:"text",placeholder:"HH-MM",required:false},
+    ]},
+  NRTL_RTRV_CARD:{label:"RTRV-CARD",category:"Nortel DXS",description:"[DXS] Retrieve card type and state for a slot",vendors:NORTEL,
+    template:"RTRV-CARD:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"Slot AID",type:"text",placeholder:"SLOT-3 or ALL",required:true,help:"DXS slot numbering starts at 1."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  NRTL_DLT_CARD:{label:"DLT-CARD",category:"Nortel DXS",description:"[DXS] Delete / de-provision a card from a slot",vendors:NORTEL,
+    template:"DLT-CARD:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"Slot AID",type:"text",placeholder:"SLOT-3",required:true,help:"Delete all DS0 cross-connects and DS1 facilities first."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  NRTL_RTRV_DS1:{label:"RTRV-DS1",category:"Nortel DXS",description:"[DXS] Retrieve DS1 port parameters",vendors:NORTEL,
+    template:"RTRV-DS1:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"DS1 AID",type:"text",placeholder:"DS1-1-1 or ALL",required:true,help:"Format: DS1-slot-port. DXS-5 up to 28 ports per card."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  NRTL_ED_DS1:{label:"ED-DS1",category:"Nortel DXS",description:"[DXS] Edit DS1 port parameters",vendors:NORTEL,
+    template:"ED-DS1:[{tid}]:{aid}:{ctag}:::{linecde},{fmt},{lbo},{tacc},{sfber},{sdber},{ains},{inact};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"DS1 AID",type:"text",placeholder:"DS1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"linecde",label:"Line Code",type:"select",options:["","AMI","B8ZS"],required:false},
+      {id:"fmt",label:"Framing Format",type:"select",options:["","SF","ESF"],required:false},
+      {id:"lbo",label:"Line Build Out",type:"select",options:["","0-133FT","133-266FT","266-399FT","399-533FT","533-655FT"],required:false},
+      {id:"tacc",label:"Test Access",type:"select",options:["","Y","N"],required:false},
+      {id:"sfber",label:"SF BER Threshold",type:"select",options:["","1E-3","1E-4","1E-5"],required:false},
+      {id:"sdber",label:"SD BER Threshold",type:"select",options:["","1E-5","1E-6","1E-7","1E-8","1E-9"],required:false},
+      {id:"ains",label:"Auto-in-Service",type:"select",options:["","Y","N"],required:false},
+      {id:"inact",label:"Inactive State",type:"select",options:["","OOS-MA,MT","OOS-MA,LPBK"],required:false},
+    ]},
+  NRTL_DLT_DS1:{label:"DLT-DS1",category:"Nortel DXS",description:"[DXS] Delete DS1 port provisioning",vendors:NORTEL,
+    template:"DLT-DS1:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"DS1 AID",type:"text",placeholder:"DS1-1-1",required:true,help:"Delete all DS0 cross-connects on this DS1 first."},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  NRTL_ENT_CRS_DS0:{label:"ENT-CRS-DS0 (DXS)",category:"Nortel DXS",description:"[DXS] Enter DS0 cross-connect",vendors:NORTEL,
+    template:"ENT-CRS-DS0:[{tid}]:{from_aid},{to_aid}:{ctag}:::{cct};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"from_aid",label:"From DS0 AID",type:"text",placeholder:"DS0-1-1-1",required:true,help:"Format: DS0-slot-port-channel"},
+      {id:"to_aid",label:"To DS0 AID",type:"text",placeholder:"DS0-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"cct",label:"Circuit Type",type:"select",options:["","1WAY","2WAY"],required:false},
+    ]},
+  NRTL_DLT_CRS_DS0:{label:"DLT-CRS-DS0 (DXS)",category:"Nortel DXS",description:"[DXS] Delete DS0 cross-connect",vendors:NORTEL,
+    template:"DLT-CRS-DS0:[{tid}]:{from_aid},{to_aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"from_aid",label:"From DS0 AID",type:"text",placeholder:"DS0-1-1-1",required:true},
+      {id:"to_aid",label:"To DS0 AID",type:"text",placeholder:"DS0-2-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  NRTL_RTRV_CRS:{label:"RTRV-CRS (DXS)",category:"Nortel DXS",description:"[DXS] Retrieve DS0 cross-connect table",vendors:NORTEL,
+    template:"RTRV-CRS:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"AID",type:"text",placeholder:"ALL or DS0-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+  NRTL_OPR_LPBK:{label:"OPR-LPBK (DXS)",category:"Nortel DXS",description:"[DXS] Apply loopback on a DS1 port",vendors:NORTEL,
+    template:"OPR-LPBK-DS1:[{tid}]:{aid}:{ctag}:::{lpbktype};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"DS1 AID",type:"text",placeholder:"DS1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"lpbktype",label:"Loopback Type",type:"select",options:["TERMINAL","FACILITY","LINE","INWARD"],required:true},
+    ]},
+  NRTL_RLS_LPBK:{label:"RLS-LPBK (DXS)",category:"Nortel DXS",description:"[DXS] Release loopback on a DS1 port",vendors:NORTEL,
+    template:"RLS-LPBK-DS1:[{tid}]:{aid}:{ctag}:::{lpbktype};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid",label:"DS1 AID",type:"text",placeholder:"DS1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"lpbktype",label:"Loopback Type",type:"select",options:["TERMINAL","FACILITY","LINE","INWARD"],required:true},
+    ]},
+  NRTL_RTRV_ALM:{label:"RTRV-ALM (DXS)",category:"Nortel DXS",description:"[DXS] Retrieve active alarms on DXS shelf",vendors:NORTEL,
+    template:"RTRV-ALM-{aid_type}:[{tid}]:{aid}:{ctag}::{ntfcncde},{condtype},{srveff};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid_type",label:"AID Type",type:"select",options:["ALL","DS1","DS0","CARD","SHELF"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"ALL",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"ntfcncde",label:"Notification Code",type:"select",options:["","CR","MJ","MN","WN","NA","NR"],required:false},
+      {id:"condtype",label:"Condition Type",type:"text",placeholder:"LOS or ALL",required:false},
+      {id:"srveff",label:"Service Effect",type:"select",options:["","SA","NSA"],required:false},
+    ]},
+  NRTL_RTRV_PM:{label:"RTRV-PM (DXS)",category:"Nortel DXS",description:"[DXS] Retrieve DS1/DS0 performance monitoring",vendors:NORTEL,
+    template:"RTRV-PM-{aid_type}:[{tid}]:{aid}:{ctag}::{montype},{locn},{dirn},{tmper},{mondat},{montm};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"DXS5-01",required:false},
+      {id:"aid_type",label:"AID Type",type:"select",options:["DS1","DS0","ALL"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"DS1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"montype",label:"Monitor Type",type:"select",options:["ALL","ES","SES","UAS","CV","AISS","EFS","CSES","LOFC"],required:false},
+      {id:"locn",label:"Location",type:"select",options:["","NEND","FEND"],required:false},
+      {id:"dirn",label:"Direction",type:"select",options:["","RCV","TRMT","BTH"],required:false},
+      {id:"tmper",label:"Time Period",type:"select",options:["","15-MIN","1-DAY"],required:false},
+      {id:"mondat",label:"Monitor Date",type:"text",placeholder:"MM-DD",required:false},
+      {id:"montm",label:"Monitor Time",type:"text",placeholder:"HH-MM",required:false},
+    ]},
+  OPR_LPBK:{label:"OPR-LPBK",category:"Maintenance",description:"Apply loopback on a facility",vendors:ALL,
+    template:"OPR-LPBK-{aid_type}:[{tid}]:{aid}:{ctag}:::{lpbktype};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid_type",label:"AID Type",type:"select",options:["T1","T3","DS1","DS3","OC3","OC12","OC48","OC192","ETH","STS1"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"lpbktype",label:"Loopback Type",type:"select",options:["TERMINAL","FACILITY","LINE","PAYLOAD","INWARD"],required:true},
+    ]},
+  RLS_LPBK:{label:"RLS-LPBK",category:"Maintenance",description:"Release loopback on a facility",vendors:ALL,
+    template:"RLS-LPBK-{aid_type}:[{tid}]:{aid}:{ctag}:::{lpbktype};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid_type",label:"AID Type",type:"select",options:["T1","T3","DS1","DS3","OC3","OC12","OC48","OC192","ETH","STS1"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"lpbktype",label:"Loopback Type",type:"select",options:["TERMINAL","FACILITY","LINE","PAYLOAD","INWARD"],required:true},
+    ]},
+  OPR_PROTNSW:{label:"OPR-PROTNSW",category:"Maintenance",description:"Operate a protection switch on a facility or path",vendors:SONET,
+    template:"OPR-PROTNSW-{aid_type}:[{tid}]:{aid}:{ctag}:::{switchmode};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid_type",label:"AID Type",type:"select",options:["OC3","OC12","OC48","OC192","STS1","T1"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"FAC-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+      {id:"switchmode",label:"Switch Mode",type:"select",options:["FRCD","MAN","LOCKOUT","EXER"],required:true,help:"FRCD=Forced  MAN=Manual  LOCKOUT=Lock protection  EXER=Exercise"},
+    ]},
+  RLS_PROTNSW:{label:"RLS-PROTNSW",category:"Maintenance",description:"Release protection switch",vendors:SONET,
+    template:"RLS-PROTNSW-{aid_type}:[{tid}]:{aid}:{ctag};",
+    params:[
+      {id:"tid",label:"Target ID (TID)",type:"text",placeholder:"NE-01",required:false},
+      {id:"aid_type",label:"AID Type",type:"select",options:["OC3","OC12","OC48","OC192","STS1","T1"],required:true},
+      {id:"aid",label:"AID",type:"text",placeholder:"FAC-1-1-1",required:true},
+      {id:"ctag",label:"Correlation Tag",type:"text",placeholder:"1",required:true},
+    ]},
+};
+
+const isNortel=v=>v==="daxs5"||v==="daxs4";
+
+function App(){
+  const [vendor,setVendor]=useState("generic");
+  const [selCmd,setSelCmd]=useState("RTRV_ALM");
+  const [params,setParams]=useState({});
+  const [history,setHistory]=useState([]);
+  const [tab,setTab]=useState("params");
+  const [search,setSearch]=useState("");
+  const [copied,setCopied]=useState(false);
+
+  const cmdDef=COMMANDS[selCmd];
+
+  const filteredCmds=useMemo(()=>{
+    const base=Object.entries(COMMANDS).filter(([,d])=>d.vendors.includes(vendor));
+    if(!search)return base;
+    const q=search.toLowerCase();
+    return base.filter(([,d])=>d.label.toLowerCase().includes(q)||d.description.toLowerCase().includes(q)||d.category.toLowerCase().includes(q));
+  },[vendor,search]);
+
+  const grouped=useMemo(()=>{
+    const g={};
+    filteredCmds.forEach(([k,d])=>{(g[d.category]=g[d.category]||[]).push([k,d]);});
+    return g;
+  },[filteredCmds]);
+
+  const built=useMemo(()=>{
+    if(!cmdDef)return"";
+    let cmd=cmdDef.template;
+    cmdDef.params.forEach(p=>{
+      const v=params[p.id]||"";
+      cmd=p.id==="tid"?cmd.replace("[{tid}]",v):cmd.replace("{"+p.id+"}",v);
+    });
+    return cmd;
+  },[cmdDef,params]);
+
+  const setP=(id,v)=>setParams(prev=>({...prev,[id]:v}));
+  const clear=()=>setParams({});
+  const save=()=>{if(!built)return;setHistory(p=>[{cmd:built,label:cmdDef.label,ts:new Date().toLocaleTimeString()},...p.slice(0,49)]);};
+  const copy=()=>navigator.clipboard.writeText(built).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1600);});
+  const pick=k=>{setSelCmd(k);setParams({});setTab("params");};
+
+  const renderTmpl=()=>cmdDef.template.split(/(\{[^}]+\}|\[[^\]]+\])/g).map((p,i)=>
+    (p[0]==="{"||p[0]==="[")?<span key={i} className="tmpl-hl">{p}</span>:<span key={i}>{p}</span>
+  );
+
+  return (
+    <div className="app">
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo">TL1 Builder</div>
+          <div className="logo-sub">Multi-Vendor Command Generator</div>
+        </div>
+        <div className="vendor-row">
+          {Object.entries(VENDORS).map(([k,v])=>(
+            <button key={k}
+              className={"vendor-chip"+(vendor===k?" active":"")+(isNortel(k)?" nortel-chip":"")}
+              onClick={()=>{setVendor(k);setSelCmd(null);setParams({});}}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <div className="search-wrap">
+          <input className="search-input" placeholder="Filter commands…" value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        <div className="cmd-list">
+          {Object.entries(grouped).map(([cat,cmds])=>(
+            <div key={cat}>
+              <div className="cat-label">{cat}</div>
+              {cmds.map(([k,d])=>(
+                <div key={k} className={"cmd-item"+(selCmd===k?" active":"")} onClick={()=>pick(k)}>
+                  <div className="cmd-name">{d.label}</div>
+                  <div className="cmd-desc">{d.description}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+          {!Object.keys(grouped).length&&<div className="no-match">No commands match.</div>}
+        </div>
+      </div>
+
+      <div className="main">
+        {cmdDef?(
+          <>
+            <div className="top-bar">
+              <div className="top-title">{cmdDef.label}</div>
+              <div className="top-desc">{cmdDef.description}</div>
+              <div className="vendor-badges">
+                {cmdDef.vendors.map(v=>(
+                  <span key={v} className={"vbadge"+(isNortel(v)?" nortel":"")}>{VENDORS[v]&&VENDORS[v].label}</span>
+                ))}
+              </div>
+            </div>
+            <div className="content">
+              <div className="params-panel">
+                <div className="tabs">
+                  <button className={"tab"+(tab==="params"?" active":"")} onClick={()=>setTab("params")}>Parameters</button>
+                  <button className={"tab"+(tab==="template"?" active":"")} onClick={()=>setTab("template")}>Template</button>
+                  <button className={"tab"+(tab==="history"?" active":"")} onClick={()=>setTab("history")}>History<span className="cbadge">{history.length}</span></button>
+                </div>
+                {tab==="params"&&(
+                  <>
+                    {cmdDef.params.map(p=>(
+                      <div key={p.id} className="param-group">
+                        <div className="param-label">{p.label}{p.required&&<span className="param-req">*</span>}</div>
+                        {p.type==="select"
+                          ?<select className="param-select" value={params[p.id]||""} onChange={e=>setP(p.id,e.target.value)}>
+                              {p.options.map(o=><option key={o} value={o}>{o===""?"— leave blank —":o}</option>)}
+                            </select>
+                          :<input className="param-input" type={p.type==="password"?"password":"text"}
+                              placeholder={p.placeholder} value={params[p.id]||""}
+                              onChange={e=>setP(p.id,e.target.value)}/>
+                        }
+                        {p.help&&<div className="param-help">{p.help}</div>}
+                      </div>
+                    ))}
+                    <div className="actions"><button className="btn btn-clr" onClick={clear}>Clear</button></div>
+                  </>
+                )}
+                {tab==="template"&&(
+                  <div className="tmpl-box">
+                    <div className="sec-title">Command Template</div>
+                    <div className="tmpl-txt">{renderTmpl()}</div>
+                  </div>
+                )}
+                {tab==="history"&&(
+                  history.length===0
+                    ?<div style={{fontSize:"11px",color:"#484f58"}}>No commands saved yet.</div>
+                    :history.map((h,i)=>(
+                        <div key={i} className="hist-item" onClick={()=>navigator.clipboard.writeText(h.cmd)} title="Click to copy">
+                          <div className="hist-cmd">{h.cmd}</div>
+                          <div className="hist-meta">{h.label} · {h.ts}</div>
+                        </div>
+                      ))
+                )}
+              </div>
+              <div className="output-panel">
+                <div className="sec-title">Generated Command</div>
+                <div className="output-box">
+                  {built?<div className="cmd-out">{built}</div>:<div className="cmd-ph">Fill in parameters to generate command…</div>}
+                </div>
+                <div className="actions">
+                  <button className="btn btn-ok" onClick={copy}>Copy Command</button>
+                  <span className={"copy-ok"+(copied?" show":"")}>✓ Copied!</span>
+                  <button className="btn btn-sec" onClick={save}>Save to History</button>
+                </div>
+              </div>
+            </div>
+          </>
+        ):(
+          <div className="empty-st">SELECT A COMMAND</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+</body>
+</html>
